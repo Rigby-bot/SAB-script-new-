@@ -14,7 +14,7 @@ local hrp = char:WaitForChild("HumanoidRootPart")
 -- GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,350,0,320)
+frame.Size = UDim2.new(0,400,0,320)
 frame.Position = UDim2.new(0.3,0,0.3,0)
 frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.Active = true
@@ -32,8 +32,9 @@ local function makeButton(text, y)
 	return btn
 end
 
+-- Buttons
 local blockBtn = makeButton("Toggle Block Follower",5)
-local stayBtn = makeButton("Toggle Stay Model",40)
+local stayBtn = makeButton("Toggle Stay Model Fling",40)
 local teleportBtn = makeButton("Toggle Teleport 1 Stud",75)
 local zigzagBtn = makeButton("Toggle Zigzag Teleport",110)
 local closeBtn = makeButton("Close GUI",145)
@@ -66,18 +67,29 @@ local function stopFollower()
 	block = nil
 end
 
--- Stay model logic
+-- Stay model fling logic
 local stayActive = false
 local dummyModel
 local dummyParts = {}
 local connStay
+local savedParts = {} -- save original CFrames
 
-local function toggleStayModel()
+local function toggleStayModelFling()
 	stayActive = not stayActive
 	if stayActive then
+		-- Save original CFrames
+		savedParts = {}
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				savedParts[part] = part.CFrame
+			end
+		end
+
+		-- Create dummy model
 		if dummyModel then dummyModel:Destroy() end
 		dummyModel = Instance.new("Model", workspace)
 		dummyModel.Name = "StayDummy"
+		dummyParts = {}
 		for _, part in ipairs(char:GetDescendants()) do
 			if part:IsA("BasePart") then
 				local clone = part:Clone()
@@ -87,6 +99,16 @@ local function toggleStayModel()
 				table.insert(dummyParts, {original=part, clone=clone})
 			end
 		end
+
+		-- Apply fling to original parts
+		for part, _ in pairs(savedParts) do
+			if part and part.Parent then
+				part.Velocity = Vector3.new(math.random(-50,50), math.random(50,100), math.random(-50,50))
+				part.RotVelocity = Vector3.new(math.random(-10,10), math.random(-10,10), math.random(-10,10))
+			end
+		end
+
+		-- Keep clones aligned
 		connStay = RunService.Heartbeat:Connect(function()
 			for _, pair in ipairs(dummyParts) do
 				if pair.original and pair.clone then
@@ -95,6 +117,16 @@ local function toggleStayModel()
 			end
 		end)
 	else
+		-- Revert original parts
+		for part, cf in pairs(savedParts) do
+			if part and part.Parent then
+				part.CFrame = cf
+				part.Velocity = Vector3.new(0,0,0)
+				part.RotVelocity = Vector3.new(0,0,0)
+			end
+		end
+		savedParts = {}
+
 		if connStay then connStay:Disconnect() connStay = nil end
 		if dummyModel then dummyModel:Destroy() dummyModel = nil end
 		dummyParts = {}
@@ -130,16 +162,16 @@ local zigzagCoroutine
 local function toggleZigzag()
 	zigzagActive = not zigzagActive
 	if zigzagActive then
-		local direction = 1 -- start with forward-left (1) then forward-right (-1)
+		local direction = 1
 		zigzagCoroutine = coroutine.create(function()
 			while zigzagActive do
 				if hrp then
 					local forward = hrp.CFrame.LookVector
 					local right = hrp.CFrame.RightVector
-					local offset = (forward + right * direction).Unit * 2 -- move 2 studs
+					local offset = (forward + right * direction).Unit * 2
 					hrp.CFrame = hrp.CFrame + offset
 				end
-				direction = direction * -1 -- switch left/right
+				direction = direction * -1
 				wait(0.6)
 			end
 		end)
@@ -149,18 +181,18 @@ local function toggleZigzag()
 	end
 end
 
--- Buttons
+-- Button connections
 blockBtn.MouseButton1Click:Connect(function()
 	if runningFollower then stopFollower() else startFollower() end
 end)
 
-stayBtn.MouseButton1Click:Connect(toggleStayModel)
+stayBtn.MouseButton1Click:Connect(toggleStayModelFling)
 teleportBtn.MouseButton1Click:Connect(toggleTeleport)
 zigzagBtn.MouseButton1Click:Connect(toggleZigzag)
 
 closeBtn.MouseButton1Click:Connect(function()
 	stopFollower()
-	if stayActive then toggleStayModel() end
+	if stayActive then toggleStayModelFling() end
 	if teleportActive then toggleTeleport() end
 	if zigzagActive then toggleZigzag() end
 	screenGui:Destroy()
