@@ -7,6 +7,8 @@ ANOTHER ALSO is that the 1 stud tp and platform things gets detected with brainr
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
@@ -14,7 +16,7 @@ local hrp = char:WaitForChild("HumanoidRootPart")
 -- GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,400,0,320)
+frame.Size = UDim2.new(0,400,0,400)
 frame.Position = UDim2.new(0.3,0,0.3,0)
 frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.Active = true
@@ -37,7 +39,8 @@ local blockBtn = makeButton("Toggle Block Follower",5)
 local stayBtn = makeButton("Toggle Stay Model Fling",40)
 local teleportBtn = makeButton("Toggle Teleport 1 Stud",75)
 local zigzagBtn = makeButton("Toggle Zigzag Teleport",110)
-local closeBtn = makeButton("Close GUI",145)
+local proxyArmBtn = makeButton("Toggle Proxy Arms",145)
+local closeBtn = makeButton("Close GUI",180)
 
 -- Block follower
 local block
@@ -58,7 +61,6 @@ local function startFollower()
 		end
 	end)
 end
-
 local function stopFollower()
 	runningFollower = false
 	if connFollower then connFollower:Disconnect() end
@@ -67,17 +69,15 @@ local function stopFollower()
 	block = nil
 end
 
--- Stay model fling logic
+-- Stay model fling
 local stayActive = false
 local dummyModel
 local dummyParts = {}
 local connStay
-local savedParts = {} -- save original CFrames
-
+local savedParts = {}
 local function toggleStayModelFling()
 	stayActive = not stayActive
 	if stayActive then
-		-- Save original CFrames
 		savedParts = {}
 		for _, part in ipairs(char:GetDescendants()) do
 			if part:IsA("BasePart") then
@@ -85,7 +85,6 @@ local function toggleStayModelFling()
 			end
 		end
 
-		-- Create dummy model
 		if dummyModel then dummyModel:Destroy() end
 		dummyModel = Instance.new("Model", workspace)
 		dummyModel.Name = "StayDummy"
@@ -100,7 +99,6 @@ local function toggleStayModelFling()
 			end
 		end
 
-		-- Apply fling to original parts
 		for part, _ in pairs(savedParts) do
 			if part and part.Parent then
 				part.Velocity = Vector3.new(math.random(-50,50), math.random(50,100), math.random(-50,50))
@@ -108,7 +106,6 @@ local function toggleStayModelFling()
 			end
 		end
 
-		-- Keep clones aligned
 		connStay = RunService.Heartbeat:Connect(function()
 			for _, pair in ipairs(dummyParts) do
 				if pair.original and pair.clone then
@@ -117,7 +114,6 @@ local function toggleStayModelFling()
 			end
 		end)
 	else
-		-- Revert original parts
 		for part, cf in pairs(savedParts) do
 			if part and part.Parent then
 				part.CFrame = cf
@@ -126,25 +122,22 @@ local function toggleStayModelFling()
 			end
 		end
 		savedParts = {}
-
 		if connStay then connStay:Disconnect() connStay = nil end
 		if dummyModel then dummyModel:Destroy() dummyModel = nil end
 		dummyParts = {}
 	end
 end
 
--- Teleport logic (1 stud every 0.75s)
+-- Teleport 1 stud
 local teleportActive = false
 local teleportCoroutine
-
 local function toggleTeleport()
 	teleportActive = not teleportActive
 	if teleportActive then
 		teleportCoroutine = coroutine.create(function()
 			while teleportActive do
 				if hrp then
-					local forward = hrp.CFrame.LookVector * 1
-					hrp.CFrame = hrp.CFrame + forward
+					hrp.CFrame = hrp.CFrame + hrp.CFrame.LookVector
 				end
 				wait(0.75)
 			end
@@ -155,10 +148,9 @@ local function toggleTeleport()
 	end
 end
 
--- Zigzag teleport logic (2 studs forward-left / forward-right every 0.6s)
+-- Zigzag teleport
 local zigzagActive = false
 local zigzagCoroutine
-
 local function toggleZigzag()
 	zigzagActive = not zigzagActive
 	if zigzagActive then
@@ -181,24 +173,112 @@ local function toggleZigzag()
 	end
 end
 
+-- Proxy Arms
+local proxyArmActive = false
+local proxyPart
+local armWelds = {}
+local proxyDistance = 6
+local armSpeed = 50
+
+local function enableProxyArms()
+	if proxyArmActive then return end
+	proxyArmActive = true
+
+	proxyPart = Instance.new("Part")
+	proxyPart.Size = Vector3.new(2,2,1)
+	proxyPart.Anchored = false
+	proxyPart.CanCollide = false
+	proxyPart.Transparency = 1
+	proxyPart.CFrame = hrp.CFrame + hrp.CFrame.LookVector * proxyDistance
+	proxyPart.Parent = workspace
+
+	local leftArm = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
+	local rightArm = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
+	local arms = {leftArm, rightArm}
+
+	for _, arm in ipairs(arms) do
+		if arm then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = arm
+			weld.Part1 = proxyPart
+			weld.Parent = arm
+			table.insert(armWelds, weld)
+		end
+	end
+
+	RunService.RenderStepped:Connect(function()
+		if proxyArmActive and proxyPart then
+			local move = Vector3.new()
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + proxyPart.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - proxyPart.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - proxyPart.CFrame.RightVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + proxyPart.CFrame.RightVector end
+			if move.Magnitude > 0 then
+				proxyPart.Velocity = move.Unit * armSpeed
+			else
+				proxyPart.Velocity = Vector3.new(0,0,0)
+			end
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if proxyArmActive and input.KeyCode == Enum.KeyCode.E then
+			local rayOrigin = proxyPart.Position
+			local rayDir = proxyPart.CFrame.LookVector * 5
+			local ray = Ray.new(rayOrigin, rayDir)
+			local part, _ = workspace:FindPartOnRay(ray, char)
+			if part and part.Parent then
+				for _, prompt in ipairs(part:GetDescendants()) do
+					if prompt:IsA("ProximityPrompt") then
+						prompt:InputHoldBegin()
+						task.wait(0.1)
+						prompt:InputHoldEnd()
+					end
+				end
+			end
+		end
+	end)
+end
+
+local function disableProxyArms()
+	if not proxyArmActive then return end
+	proxyArmActive = false
+	if proxyPart then
+		proxyPart:Destroy()
+		proxyPart = nil
+	end
+	for _, weld in ipairs(armWelds) do
+		weld:Destroy()
+	end
+	armWelds = {}
+end
+
 -- Button connections
 blockBtn.MouseButton1Click:Connect(function()
 	if runningFollower then stopFollower() else startFollower() end
 end)
-
 stayBtn.MouseButton1Click:Connect(toggleStayModelFling)
 teleportBtn.MouseButton1Click:Connect(toggleTeleport)
 zigzagBtn.MouseButton1Click:Connect(toggleZigzag)
+proxyArmBtn.MouseButton1Click:Connect(function()
+	if proxyArmActive then
+		disableProxyArms()
+	else
+		enableProxyArms()
+	end
+end)
 
 closeBtn.MouseButton1Click:Connect(function()
 	stopFollower()
 	if stayActive then toggleStayModelFling() end
 	if teleportActive then toggleTeleport() end
 	if zigzagActive then toggleZigzag() end
+	if proxyArmActive then disableProxyArms() end
 	screenGui:Destroy()
 end)
 
--- Reset character references on respawn
+-- Character respawn
 player.CharacterAdded:Connect(function(newChar)
 	char = newChar
 	hrp = newChar:WaitForChild("HumanoidRootPart")
