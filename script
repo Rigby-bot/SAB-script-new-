@@ -1,0 +1,171 @@
+(this is really bad and the zigzag tp is really broken, ill try and fix it)
+
+
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,350,0,320)
+frame.Position = UDim2.new(0.3,0,0.3,0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local function makeButton(text, y)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1,-10,0,30)
+	btn.Position = UDim2.new(0,5,0,y)
+	btn.Text = text
+	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Parent = frame
+	return btn
+end
+
+local blockBtn = makeButton("Toggle Block Follower",5)
+local stayBtn = makeButton("Toggle Stay Model",40)
+local teleportBtn = makeButton("Toggle Teleport 1 Stud",75)
+local zigzagBtn = makeButton("Toggle Zigzag Teleport",110)
+local closeBtn = makeButton("Close GUI",145)
+
+-- Block follower
+local block
+local runningFollower = false
+local connFollower
+local function startFollower()
+	if runningFollower then return end
+	runningFollower = true
+	block = Instance.new("Part")
+	block.Size = Vector3.new(6,1,6)
+	block.Anchored = true
+	block.CanCollide = true
+	block.BrickColor = BrickColor.new("Bright blue")
+	block.Parent = workspace
+	connFollower = RunService.Heartbeat:Connect(function()
+		if hrp and block then
+			block.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + block.Size.Y/2, 0)
+		end
+	end)
+end
+
+local function stopFollower()
+	runningFollower = false
+	if connFollower then connFollower:Disconnect() end
+	connFollower = nil
+	if block then block:Destroy() end
+	block = nil
+end
+
+-- Stay model logic
+local stayActive = false
+local dummyModel
+local dummyParts = {}
+local connStay
+
+local function toggleStayModel()
+	stayActive = not stayActive
+	if stayActive then
+		if dummyModel then dummyModel:Destroy() end
+		dummyModel = Instance.new("Model", workspace)
+		dummyModel.Name = "StayDummy"
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				local clone = part:Clone()
+				clone.Anchored = true
+				clone.CanCollide = false
+				clone.Parent = dummyModel
+				table.insert(dummyParts, {original=part, clone=clone})
+			end
+		end
+		connStay = RunService.Heartbeat:Connect(function()
+			for _, pair in ipairs(dummyParts) do
+				if pair.original and pair.clone then
+					pair.clone.CFrame = pair.original.CFrame
+				end
+			end
+		end)
+	else
+		if connStay then connStay:Disconnect() connStay = nil end
+		if dummyModel then dummyModel:Destroy() dummyModel = nil end
+		dummyParts = {}
+	end
+end
+
+-- Teleport logic (1 stud every 0.75s)
+local teleportActive = false
+local teleportCoroutine
+
+local function toggleTeleport()
+	teleportActive = not teleportActive
+	if teleportActive then
+		teleportCoroutine = coroutine.create(function()
+			while teleportActive do
+				if hrp then
+					local forward = hrp.CFrame.LookVector * 1
+					hrp.CFrame = hrp.CFrame + forward
+				end
+				wait(0.75)
+			end
+		end)
+		coroutine.resume(teleportCoroutine)
+	else
+		teleportCoroutine = nil
+	end
+end
+
+-- Zigzag teleport logic (2 studs forward-left / forward-right every 0.6s)
+local zigzagActive = false
+local zigzagCoroutine
+
+local function toggleZigzag()
+	zigzagActive = not zigzagActive
+	if zigzagActive then
+		local direction = 1 -- start with forward-left (1) then forward-right (-1)
+		zigzagCoroutine = coroutine.create(function()
+			while zigzagActive do
+				if hrp then
+					local forward = hrp.CFrame.LookVector
+					local right = hrp.CFrame.RightVector
+					local offset = (forward + right * direction).Unit * 2 -- move 2 studs
+					hrp.CFrame = hrp.CFrame + offset
+				end
+				direction = direction * -1 -- switch left/right
+				wait(0.6)
+			end
+		end)
+		coroutine.resume(zigzagCoroutine)
+	else
+		zigzagCoroutine = nil
+	end
+end
+
+-- Buttons
+blockBtn.MouseButton1Click:Connect(function()
+	if runningFollower then stopFollower() else startFollower() end
+end)
+
+stayBtn.MouseButton1Click:Connect(toggleStayModel)
+teleportBtn.MouseButton1Click:Connect(toggleTeleport)
+zigzagBtn.MouseButton1Click:Connect(toggleZigzag)
+
+closeBtn.MouseButton1Click:Connect(function()
+	stopFollower()
+	if stayActive then toggleStayModel() end
+	if teleportActive then toggleTeleport() end
+	if zigzagActive then toggleZigzag() end
+	screenGui:Destroy()
+end)
+
+-- Reset character references on respawn
+player.CharacterAdded:Connect(function(newChar)
+	char = newChar
+	hrp = newChar:WaitForChild("HumanoidRootPart")
+end)
