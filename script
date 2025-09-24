@@ -2,286 +2,405 @@
 ALSO the stay model thing is actually broken, what it does it it freezes your model and flings the upper part out, making you basically unhitabble, but your lower body is still hittable so watch out.
 ANOTHER ALSO is that the 1 stud tp and platform things gets detected with brainrot on hand so be careful, well getting detected with platform is easy to bypass, 1 stud is kinda easy
 now added an overpowered fly script (proxy arms)
-
+added new color changer to the gui and made it wit clean animations plus a new arrow button for settings page
 
 
 
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 
--- GUI
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,400,0,400)
-frame.Position = UDim2.new(0.3,0,0.3,0)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
-
-local function makeButton(text, y)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1,-10,0,30)
-	btn.Position = UDim2.new(0,5,0,y)
-	btn.Text = text
-	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-	btn.TextColor3 = Color3.new(1,1,1)
-	btn.Parent = frame
-	return btn
+-- Create or reuse GUI
+local screenGui = player:WaitForChild("PlayerGui"):FindFirstChild("CustomGUI")
+if not screenGui then
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "CustomGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player:WaitForChild("PlayerGui")
 end
 
--- Buttons
-local blockBtn = makeButton("Toggle Block Follower",5)
-local stayBtn = makeButton("Toggle Stay Model Fling",40)
-local teleportBtn = makeButton("Toggle Teleport 1 Stud",75)
-local zigzagBtn = makeButton("Toggle Zigzag Teleport",110)
-local proxyArmBtn = makeButton("Toggle Proxy Arms",145)
-local closeBtn = makeButton("Close GUI",180)
+-- Main frame
+local frame = screenGui:FindFirstChild("MainFrame")
+if not frame then
+    frame = Instance.new("Frame")
+    frame.Name = "MainFrame"
+    frame.Size = UDim2.new(0, 400, 0, 400)
+    frame.Position = UDim2.new(0.3, 0, -0.5, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    frame.Active = true
+    frame.Draggable = true
+    frame.Visible = true
+    frame.ClipsDescendants = true
+    frame.Parent = screenGui
 
--- Block follower
-local block
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+end
+
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- Open and close functions
+local function openGUI()
+    TweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.3, 0, 0.3, 0)}):Play()
+end
+local function closeGUI()
+    TweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.3, 0, -0.5, 0)}):Play()
+end
+
+-- Title
+local title = frame:FindFirstChild("Title")
+if not title then
+    title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, -10, 0, 40)
+    title.Position = UDim2.new(0, 5, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "Utility GUI"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 24
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Parent = frame
+end
+
+-- Page arrow
+local pageArrow = frame:FindFirstChild("PageArrow")
+if not pageArrow then
+    pageArrow = Instance.new("TextButton")
+    pageArrow.Name = "PageArrow"
+    pageArrow.Size = UDim2.new(0, 30, 0, 30)
+    pageArrow.Position = UDim2.new(1, -35, 0, 5)
+    pageArrow.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    pageArrow.TextColor3 = Color3.fromRGB(255, 255, 255)
+    pageArrow.Text = "→"
+    pageArrow.Font = Enum.Font.GothamBold
+    pageArrow.TextSize = 18
+    pageArrow.Parent = frame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = pageArrow
+end
+
+-- Pages
+local mainPage = Instance.new("Frame")
+mainPage.Size = UDim2.new(1, 0, 1, 0)
+mainPage.Position = UDim2.new(0,0,0,0)
+mainPage.BackgroundTransparency = 1
+mainPage.Parent = frame
+
+local settingsPage = Instance.new("Frame")
+settingsPage.Size = UDim2.new(1, 0, 1, 0)
+settingsPage.Position = UDim2.new(1,0,0,0)
+settingsPage.BackgroundTransparency = 1
+settingsPage.Parent = frame
+
+-- Page toggle
+local currentPage = "Main"
+local function updatePageVisibility()
+    for _, btn in ipairs(mainPage:GetChildren()) do
+        if btn:IsA("TextButton") then btn.Visible = (currentPage == "Main") end
+    end
+    for _, btn in ipairs(settingsPage:GetChildren()) do
+        if btn:IsA("TextButton") or btn:IsA("TextLabel") then
+            btn.Visible = (currentPage == "Settings")
+        end
+    end
+end
+
+pageArrow.MouseButton1Click:Connect(function()
+    if currentPage == "Main" then
+        currentPage = "Settings"
+        pageArrow.Text = "←"
+        TweenService:Create(mainPage, tweenInfo, {Position = UDim2.new(-1, 0, 0, 0)}):Play()
+        TweenService:Create(settingsPage, tweenInfo, {Position = UDim2.new(0, 0, 0, 0)}):Play()
+    else
+        currentPage = "Main"
+        pageArrow.Text = "→"
+        TweenService:Create(mainPage, tweenInfo, {Position = UDim2.new(0, 0, 0, 0)}):Play()
+        TweenService:Create(settingsPage, tweenInfo, {Position = UDim2.new(1, 0, 0, 0)}):Play()
+    end
+    updatePageVisibility()
+end)
+
+-- Helper to darken a Color3
+local function darkenColor(color, factor)
+    factor = factor or 0.7
+    return Color3.new(color.R * factor, color.G * factor, color.B * factor)
+end
+
+-- Helper to create buttons
+local function makeButton(text, parent, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.Position = UDim2.new(0, 10, 0, y)
+    btn.BackgroundColor3 = darkenColor(frame.BackgroundColor3, 0.7)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 18
+    btn.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0,8)
+    corner.Parent = btn
+    return btn
+end
+
+-- Main page buttons
+local startY = 55
+local spacing = 50
+local blockBtn = makeButton("Toggle Block Follower", mainPage, startY)
+local stayBtn = makeButton("Toggle Stay Model Fling", mainPage, startY + spacing)
+local teleportBtn = makeButton("Toggle Teleport 1 Stud", mainPage, startY + spacing*2)
+local zigzagBtn = makeButton("Toggle Zigzag Teleport", mainPage, startY + spacing*3)
+local proxyArmBtn = makeButton("Toggle Proxy Arms", mainPage, startY + spacing*4)
+local resetBtn = makeButton("Reset Character", mainPage, startY + spacing*5)
+local closeBtn = makeButton("Close GUI", mainPage, startY + spacing*6)
+
+-- Settings page: brighter colors with labels
+local colorOptions = {
+    {Color = Color3.fromRGB(60,60,60), Name = "Gray"},
+    {Color = Color3.fromRGB(100,100,200), Name = "Blue"},
+    {Color = Color3.fromRGB(200,100,100), Name = "Red"},
+    {Color = Color3.fromRGB(100,200,100), Name = "Green"},
+    {Color = Color3.fromRGB(255,0,255), Name = "Magenta"},
+    {Color = Color3.fromRGB(255,255,0), Name = "Yellow"}
+}
+
+local startX, startY = 10, 80
+local spacingX, spacingY = 70, 50
+for i, option in ipairs(colorOptions) do
+    local colBtn = Instance.new("TextButton")
+    colBtn.Size = UDim2.new(0, 50, 0, 30)
+    colBtn.Position = UDim2.new(0, startX + ((i-1) % 3) * spacingX, 0, startY + math.floor((i-1)/3) * spacingY)
+    colBtn.BackgroundColor3 = option.Color
+    colBtn.Text = ""
+    colBtn.Parent = settingsPage
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 50, 0, 20)
+    label.Position = UDim2.new(0, colBtn.Position.X.Offset, 0, colBtn.Position.Y.Offset + 30)
+    label.BackgroundTransparency = 1
+    label.Text = option.Name
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextScaled = true
+    label.Parent = settingsPage
+
+    colBtn.MouseButton1Click:Connect(function()
+        -- Change main frame color
+        frame.BackgroundColor3 = option.Color
+        -- Update all main page buttons to a slightly darker color
+        for _, btn in ipairs(mainPage:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.BackgroundColor3 = darkenColor(option.Color, 0.7)
+            end
+        end
+    end)
+end
+
+-- Initialize page visibility
+updatePageVisibility()
+
+-- Feature variables
 local runningFollower = false
+local block
 local connFollower
-local function startFollower()
-	if runningFollower then return end
-	runningFollower = true
-	block = Instance.new("Part")
-	block.Size = Vector3.new(6,1,6)
-	block.Anchored = true
-	block.CanCollide = true
-	block.BrickColor = BrickColor.new("Bright blue")
-	block.Parent = workspace
-	connFollower = RunService.Heartbeat:Connect(function()
-		if hrp and block then
-			block.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + block.Size.Y/2, 0)
-		end
-	end)
-end
-local function stopFollower()
-	runningFollower = false
-	if connFollower then connFollower:Disconnect() end
-	connFollower = nil
-	if block then block:Destroy() end
-	block = nil
-end
-
--- Stay model fling
 local stayActive = false
 local dummyModel
 local dummyParts = {}
 local connStay
 local savedParts = {}
-local function toggleStayModelFling()
-	stayActive = not stayActive
-	if stayActive then
-		savedParts = {}
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				savedParts[part] = part.CFrame
-			end
-		end
-
-		if dummyModel then dummyModel:Destroy() end
-		dummyModel = Instance.new("Model", workspace)
-		dummyModel.Name = "StayDummy"
-		dummyParts = {}
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				local clone = part:Clone()
-				clone.Anchored = true
-				clone.CanCollide = false
-				clone.Parent = dummyModel
-				table.insert(dummyParts, {original=part, clone=clone})
-			end
-		end
-
-		for part, _ in pairs(savedParts) do
-			if part and part.Parent then
-				part.Velocity = Vector3.new(math.random(-50,50), math.random(50,100), math.random(-50,50))
-				part.RotVelocity = Vector3.new(math.random(-10,10), math.random(-10,10), math.random(-10,10))
-			end
-		end
-
-		connStay = RunService.Heartbeat:Connect(function()
-			for _, pair in ipairs(dummyParts) do
-				if pair.original and pair.clone then
-					pair.clone.CFrame = pair.original.CFrame
-				end
-			end
-		end)
-	else
-		for part, cf in pairs(savedParts) do
-			if part and part.Parent then
-				part.CFrame = cf
-				part.Velocity = Vector3.new(0,0,0)
-				part.RotVelocity = Vector3.new(0,0,0)
-			end
-		end
-		savedParts = {}
-		if connStay then connStay:Disconnect() connStay = nil end
-		if dummyModel then dummyModel:Destroy() dummyModel = nil end
-		dummyParts = {}
-	end
-end
-
--- Teleport 1 stud
 local teleportActive = false
 local teleportCoroutine
-local function toggleTeleport()
-	teleportActive = not teleportActive
-	if teleportActive then
-		teleportCoroutine = coroutine.create(function()
-			while teleportActive do
-				if hrp then
-					hrp.CFrame = hrp.CFrame + hrp.CFrame.LookVector
-				end
-				wait(0.75)
-			end
-		end)
-		coroutine.resume(teleportCoroutine)
-	else
-		teleportCoroutine = nil
-	end
-end
-
--- Zigzag teleport
 local zigzagActive = false
 local zigzagCoroutine
-local function toggleZigzag()
-	zigzagActive = not zigzagActive
-	if zigzagActive then
-		local direction = 1
-		zigzagCoroutine = coroutine.create(function()
-			while zigzagActive do
-				if hrp then
-					local forward = hrp.CFrame.LookVector
-					local right = hrp.CFrame.RightVector
-					local offset = (forward + right * direction).Unit * 2
-					hrp.CFrame = hrp.CFrame + offset
-				end
-				direction = direction * -1
-				wait(0.6)
-			end
-		end)
-		coroutine.resume(zigzagCoroutine)
-	else
-		zigzagCoroutine = nil
-	end
-end
-
--- Proxy Arms
 local proxyArmActive = false
 local proxyPart
 local armWelds = {}
 local proxyDistance = 6
 local armSpeed = 50
 
+-- Functions for features
+local function startFollower()
+    if runningFollower then return end
+    runningFollower = true
+    block = Instance.new("Part")
+    block.Size = Vector3.new(6,1,6)
+    block.Anchored = true
+    block.CanCollide = true
+    block.BrickColor = BrickColor.new("Bright blue")
+    block.Parent = workspace
+    connFollower = RunService.Heartbeat:Connect(function()
+        if hrp and block then
+            block.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + block.Size.Y/2, 0)
+        end
+    end)
+end
+local function stopFollower()
+    runningFollower = false
+    if connFollower then connFollower:Disconnect() end
+    connFollower = nil
+    if block then block:Destroy() end
+    block = nil
+end
+
+local function toggleStayModelFling()
+    stayActive = not stayActive
+    if stayActive then
+        savedParts = {}
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then savedParts[part] = part.CFrame end
+        end
+        if dummyModel then dummyModel:Destroy() end
+        dummyModel = Instance.new("Model", workspace)
+        dummyModel.Name = "StayDummy"
+        dummyParts = {}
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                local clone = part:Clone()
+                clone.Anchored = true
+                clone.CanCollide = false
+                clone.Parent = dummyModel
+                table.insert(dummyParts, {original=part, clone=clone})
+            end
+        end
+        for part, _ in pairs(savedParts) do
+            if part and part.Parent then
+                part.Velocity = Vector3.new(math.random(-50,50), math.random(50,100), math.random(-50,50))
+                part.RotVelocity = Vector3.new(math.random(-10,10), math.random(-10,10), math.random(-10,10))
+            end
+        end
+        connStay = RunService.Heartbeat:Connect(function()
+            for _, pair in ipairs(dummyParts) do
+                if pair.original and pair.clone then
+                    pair.clone.CFrame = pair.original.CFrame
+                end
+            end
+        end)
+    else
+        for part, cf in pairs(savedParts) do
+            if part and part.Parent then
+                part.CFrame = cf
+                part.Velocity = Vector3.new(0,0,0)
+                part.RotVelocity = Vector3.new(0,0,0)
+            end
+        end
+        savedParts = {}
+        if connStay then connStay:Disconnect() connStay = nil end
+        if dummyModel then dummyModel:Destroy() dummyModel = nil end
+        dummyParts = {}
+    end
+end
+
+local function toggleTeleport()
+    teleportActive = not teleportActive
+    if teleportActive then
+        teleportCoroutine = coroutine.create(function()
+            while teleportActive do
+                if hrp then hrp.CFrame = hrp.CFrame + hrp.CFrame.LookVector end
+                task.wait(0.75)
+            end
+        end)
+        coroutine.resume(teleportCoroutine)
+    else teleportCoroutine = nil end
+end
+
+local function toggleZigzag()
+    zigzagActive = not zigzagActive
+    if zigzagActive then
+        local direction = 1
+        zigzagCoroutine = coroutine.create(function()
+            while zigzagActive do
+                if hrp then
+                    local forward = hrp.CFrame.LookVector
+                    local right = hrp.CFrame.RightVector
+                    local offset = (forward + right * direction).Unit * 2
+                    hrp.CFrame = hrp.CFrame + offset
+                end
+                direction = direction * -1
+                task.wait(0.6)
+            end
+        end)
+        coroutine.resume(zigzagCoroutine)
+    else zigzagCoroutine = nil end
+end
+
+-- Proxy Arms
 local function enableProxyArms()
-	if proxyArmActive then return end
-	proxyArmActive = true
-
-	proxyPart = Instance.new("Part")
-	proxyPart.Size = Vector3.new(2,2,1)
-	proxyPart.Anchored = false
-	proxyPart.CanCollide = false
-	proxyPart.Transparency = 1
-	proxyPart.CFrame = hrp.CFrame + hrp.CFrame.LookVector * proxyDistance
-	proxyPart.Parent = workspace
-
-	local leftArm = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
-	local rightArm = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
-	local arms = {leftArm, rightArm}
-
-	for _, arm in ipairs(arms) do
-		if arm then
-			local weld = Instance.new("WeldConstraint")
-			weld.Part0 = arm
-			weld.Part1 = proxyPart
-			weld.Parent = arm
-			table.insert(armWelds, weld)
-		end
-	end
-
-	RunService.RenderStepped:Connect(function()
-		if proxyArmActive and proxyPart then
-			local move = Vector3.new()
-			if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + proxyPart.CFrame.LookVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - proxyPart.CFrame.LookVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - proxyPart.CFrame.RightVector end
-			if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + proxyPart.CFrame.RightVector end
-			if move.Magnitude > 0 then
-				proxyPart.Velocity = move.Unit * armSpeed
-			else
-				proxyPart.Velocity = Vector3.new(0,0,0)
-			end
-		end
-	end)
-
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if proxyArmActive and input.KeyCode == Enum.KeyCode.E then
-			local rayOrigin = proxyPart.Position
-			local rayDir = proxyPart.CFrame.LookVector * 5
-			local ray = Ray.new(rayOrigin, rayDir)
-			local part, _ = workspace:FindPartOnRay(ray, char)
-			if part and part.Parent then
-				for _, prompt in ipairs(part:GetDescendants()) do
-					if prompt:IsA("ProximityPrompt") then
-						prompt:InputHoldBegin()
-						task.wait(0.1)
-						prompt:InputHoldEnd()
-					end
-				end
-			end
-		end
-	end)
+    if proxyArmActive then return end
+    proxyArmActive = true
+    proxyPart = Instance.new("Part")
+    proxyPart.Size = Vector3.new(2,2,1)
+    proxyPart.Anchored = false
+    proxyPart.CanCollide = false
+    proxyPart.Transparency = 1
+    proxyPart.CFrame = hrp.CFrame + hrp.CFrame.LookVector * proxyDistance
+    proxyPart.Parent = workspace
+    local leftArm = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
+    local rightArm = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
+    local arms = {leftArm, rightArm}
+    for _, arm in ipairs(arms) do
+        if arm then
+            local weld = Instance.new("WeldConstraint")
+            weld.Part0 = arm
+            weld.Part1 = proxyPart
+            weld.Parent = arm
+            table.insert(armWelds, weld)
+        end
+    end
+    RunService.RenderStepped:Connect(function()
+        if proxyArmActive and proxyPart then
+            local move = Vector3.new()
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + proxyPart.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - proxyPart.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - proxyPart.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + proxyPart.CFrame.RightVector end
+            proxyPart.Velocity = (move.Magnitude > 0) and move.Unit * armSpeed or Vector3.new(0,0,0)
+        end
+    end)
 end
 
 local function disableProxyArms()
-	if not proxyArmActive then return end
-	proxyArmActive = false
-	if proxyPart then
-		proxyPart:Destroy()
-		proxyPart = nil
-	end
-	for _, weld in ipairs(armWelds) do
-		weld:Destroy()
-	end
-	armWelds = {}
+    if not proxyArmActive then return end
+    proxyArmActive = false
+    if proxyPart then proxyPart:Destroy() proxyPart = nil end
+    for _, weld in ipairs(armWelds) do weld:Destroy() end
+    armWelds = {}
 end
 
--- Button connections
-blockBtn.MouseButton1Click:Connect(function()
-	if runningFollower then stopFollower() else startFollower() end
-end)
+-- Connect buttons
+blockBtn.MouseButton1Click:Connect(function() if runningFollower then stopFollower() else startFollower() end end)
 stayBtn.MouseButton1Click:Connect(toggleStayModelFling)
 teleportBtn.MouseButton1Click:Connect(toggleTeleport)
 zigzagBtn.MouseButton1Click:Connect(toggleZigzag)
-proxyArmBtn.MouseButton1Click:Connect(function()
-	if proxyArmActive then
-		disableProxyArms()
-	else
-		enableProxyArms()
-	end
+proxyArmBtn.MouseButton1Click:Connect(function() if proxyArmActive then disableProxyArms() else enableProxyArms() end end)
+resetBtn.MouseButton1Click:Connect(function()
+    stopFollower()
+    if stayActive then toggleStayModelFling() end
+    if teleportActive then toggleTeleport() end
+    if zigzagActive then toggleZigzag() end
+    if proxyArmActive then disableProxyArms() end
+    local newChar = player:LoadCharacter()
+    char = newChar
+    hrp = newChar:WaitForChild("HumanoidRootPart")
 end)
+closeBtn.MouseButton1Click:Connect(closeGUI)
 
-closeBtn.MouseButton1Click:Connect(function()
-	stopFollower()
-	if stayActive then toggleStayModelFling() end
-	if teleportActive then toggleTeleport() end
-	if zigzagActive then toggleZigzag() end
-	if proxyArmActive then disableProxyArms() end
-	screenGui:Destroy()
-end)
-
--- Character respawn
+-- Update character reference on respawn
 player.CharacterAdded:Connect(function(newChar)
-	char = newChar
-	hrp = newChar:WaitForChild("HumanoidRootPart")
+    char = newChar
+    hrp = newChar:WaitForChild("HumanoidRootPart")
 end)
+
+-- Open GUI at start
+openGUI()
+updatePageVisibility()
