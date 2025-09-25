@@ -1,10 +1,5 @@
-(this is really bad and the zigzag tp is really broken, ill try and fix it)
-ALSO the stay model thing is actually broken, what it does it it freezes your model and flings the upper part out, making you basically unhitabble, but your lower body is still hittable so watch out.
-ANOTHER ALSO is that the 1 stud tp and platform things gets detected with brainrot on hand so be careful, well getting detected with platform is easy to bypass, 1 stud is kinda easy
-now added an overpowered fly script (proxy arms)
-added new color changer to the gui and made it wit clean animations plus a new arrow button for settings page
-
-
+op Steal a Brainrot script, und float script(proxy arms, no roleback with brainrot)
+side tp is D with brainrot so dont use!!!! also model fling is basically a trash antihit so ye.
 
 
 local Players = game:GetService("Players")
@@ -161,8 +156,9 @@ local stayBtn = makeButton("Toggle Stay Model Fling", mainPage, startY + spacing
 local teleportBtn = makeButton("Toggle Teleport 1 Stud", mainPage, startY + spacing*2)
 local zigzagBtn = makeButton("Toggle Zigzag Teleport", mainPage, startY + spacing*3)
 local proxyArmBtn = makeButton("Toggle Proxy Arms", mainPage, startY + spacing*4)
-local resetBtn = makeButton("Reset Character", mainPage, startY + spacing*5)
-local closeBtn = makeButton("Close GUI", mainPage, startY + spacing*6)
+local proxySliderBtn = makeButton("Proxy Arms Slider", mainPage, startY + spacing*5)
+local resetBtn = makeButton("Reset Character", mainPage, startY + spacing*6)
+local closeBtn = makeButton("Close GUI", mainPage, startY + spacing*7)
 
 -- Settings page: brighter colors with labels
 local colorOptions = {
@@ -196,9 +192,7 @@ for i, option in ipairs(colorOptions) do
     label.Parent = settingsPage
 
     colBtn.MouseButton1Click:Connect(function()
-        -- Change main frame color
         frame.BackgroundColor3 = option.Color
-        -- Update all main page buttons to a slightly darker color
         for _, btn in ipairs(mainPage:GetChildren()) do
             if btn:IsA("TextButton") then
                 btn.BackgroundColor3 = darkenColor(option.Color, 0.7)
@@ -214,22 +208,12 @@ updatePageVisibility()
 local runningFollower = false
 local block
 local connFollower
-local stayActive = false
-local dummyModel
-local dummyParts = {}
-local connStay
-local savedParts = {}
-local teleportActive = false
-local teleportCoroutine
-local zigzagActive = false
-local zigzagCoroutine
-local proxyArmActive = false
-local proxyPart
-local armWelds = {}
-local proxyDistance = 6
-local armSpeed = 50
+local stayActive, dummyModel, dummyParts, connStay, savedParts = false, nil, {}, nil, {}
+local teleportActive, teleportCoroutine = false, nil
+local zigzagActive, zigzagCoroutine = false, nil
+local proxyArmActive, proxyPart, armWelds, proxyDistance, armSpeed = false, nil, {}, 6, 52
 
--- Functions for features
+-- Feature functions
 local function startFollower()
     if runningFollower then return end
     runningFollower = true
@@ -248,9 +232,8 @@ end
 local function stopFollower()
     runningFollower = false
     if connFollower then connFollower:Disconnect() end
-    connFollower = nil
     if block then block:Destroy() end
-    block = nil
+    block, connFollower = nil, nil
 end
 
 local function toggleStayModelFling()
@@ -376,6 +359,69 @@ local function disableProxyArms()
     for _, weld in ipairs(armWelds) do weld:Destroy() end
     armWelds = {}
 end
+
+-- Proxy Arms Slider GUI
+proxySliderBtn.MouseButton1Click:Connect(function()
+    local existingSlider = player.PlayerGui:FindFirstChild("ProxySliderGUI")
+    if existingSlider then existingSlider:Destroy() end
+
+    local sliderGui = Instance.new("ScreenGui")
+    sliderGui.Name = "ProxySliderGUI"
+    sliderGui.ResetOnSpawn = false
+    sliderGui.Parent = player.PlayerGui
+
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(0, 250, 0, 100)
+    sliderFrame.Position = UDim2.new(0.5, -125, 0.5, -50)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    sliderFrame.Active = true
+    sliderFrame.Draggable = true
+    sliderFrame.Parent = sliderGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = sliderFrame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 30)
+    label.Position = UDim2.new(0, 10, 0, 10)
+    label.BackgroundTransparency = 1
+    label.Text = "Proxy Arm Speed: "..armSpeed
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 16
+    label.Parent = sliderFrame
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(1, -20, 0, 20)
+    slider.Position = UDim2.new(0, 10, 0, 60)
+    slider.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    slider.Parent = sliderFrame
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(math.clamp(armSpeed/100,0,1),0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(200,200,50)
+    fill.Parent = slider
+
+    local drag = false
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then drag = true end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+    end)
+    slider.InputChanged:Connect(function(input)
+        if drag and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = UserInputService:GetMouseLocation().X
+            local sliderPos = slider.AbsolutePosition.X
+            local sliderSize = slider.AbsoluteSize.X
+            local percent = math.clamp((mouseX - sliderPos)/sliderSize, 0, 1)
+            fill.Size = UDim2.new(percent,0,1,0)
+            armSpeed = math.floor(percent * 100)
+            label.Text = "Proxy Arm Speed: "..armSpeed
+        end
+    end)
+end)
 
 -- Connect buttons
 blockBtn.MouseButton1Click:Connect(function() if runningFollower then stopFollower() else startFollower() end end)
