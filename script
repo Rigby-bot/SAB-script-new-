@@ -22,7 +22,7 @@ local AimSmoothness = 0.08
 -- GUI ROOT
 --------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AdminCombatPanel"
+ScreenGui.Name = "ArsenalScriptGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -43,7 +43,7 @@ Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
 --------------------------------------------------
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,40)
-Title.Text = "⚔ Arsenal script"
+Title.Text = "⚔ Arsenal Script"
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 20
 Title.TextColor3 = Color3.new(1,1,1)
